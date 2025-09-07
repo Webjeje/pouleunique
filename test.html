@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ranking Logic Test</title>
+    <style>
+        body { font-family: monospace; white-space: pre; }
+        .pass { color: green; }
+        .fail { color: red; }
+        h2 { margin-top: 2em; margin-bottom: 0.5em; }
+    </style>
+</head>
+<body>
+    <h1>Ranking Logic Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const testResults = [];
+        function assertEquals(expected, actual, message) {
+            const isEqual = JSON.stringify(expected) === JSON.stringify(actual);
+            const status = isEqual ? 'PASS' : 'FAIL';
+            const el = document.createElement('p');
+            el.className = isEqual ? 'pass' : 'fail';
+            el.textContent = `${status}: ${message}`;
+            if (!isEqual) {
+                el.textContent += `\n  Expected: ${JSON.stringify(expected, null, 2)}\n  Got:      ${JSON.stringify(actual, null, 2)}`;
+            }
+            document.getElementById('results').appendChild(el);
+            testResults.push({ success: isEqual });
+        }
+
+        // --- Code under test (copied from index.html) ---
+        function calculateRanking(players, matches, pointSettings){
+          const tab={}; players.forEach(n=>tab[n]={points:0,plus:0,minus:0,diff:0});
+          for(const k in matches){
+            const m=matches[k]; if(!Number.isInteger(m.scoreA)||!Number.isInteger(m.scoreB)) continue;
+            const {a,b,scoreA:sa,scoreB:sb}=m;
+            tab[a].plus+=sa; tab[a].minus+=sb; tab[b].plus+=sb; tab[b].minus+=sa;
+            if(sa>sb){ tab[a].points+=pointSettings.win; tab[b].points+=pointSettings.loss; }
+            else if(sa<sb){ tab[b].points+=pointSettings.win; tab[a].points+=pointSettings.loss; }
+            else { tab[a].points+=pointSettings.draw; tab[b].points+=pointSettings.draw; }
+          }
+          for(const n in tab){ tab[n].diff=tab[n].plus-tab[n].minus; }
+          return Object.entries(tab).sort(([,A],[,B])=>{
+            if(B.points!==A.points) return B.points-A.points;
+            if(B.diff!==A.diff) return B.diff-A.diff;
+            if(B.plus!==A.plus) return B.plus-A.plus;
+            return 0;
+          });
+        }
+
+        function runTests() {
+            const players = ['A', 'B', 'C', 'D'];
+            const matches = {
+                'A||B': { a: 'A', b: 'B', scoreA: 2, scoreB: 1 }, // A wins
+                'C||D': { a: 'C', b: 'D', scoreA: 1, scoreB: 1 }  // Draw
+            };
+
+            // --- Test Case 1: Default points (3-2-1) ---
+            const h2_1 = document.createElement('h2');
+            h2_1.textContent = "Test Case 1: Default Point Settings (3-2-1)";
+            document.getElementById('results').appendChild(h2_1);
+
+            const defaultPointSettings = { win: 3, draw: 2, loss: 1 };
+            const ranking_default = calculateRanking(players, matches, defaultPointSettings);
+            const results_default = Object.fromEntries(ranking_default);
+
+            assertEquals(3, results_default['A'].points, "[Default] Player A (winner) should have 3 points");
+            assertEquals(1, results_default['B'].points, "[Default] Player B (loser) should have 1 point");
+            assertEquals(2, results_default['C'].points, "[Default] Player C (draw) should have 2 points");
+            assertEquals(2, results_default['D'].points, "[Default] Player D (draw) should have 2 points");
+
+            // --- Test Case 2: Custom points (5-0-0) ---
+            const h2_2 = document.createElement('h2');
+            h2_2.textContent = "Test Case 2: Custom Point Settings (5-0-0)";
+            document.getElementById('results').appendChild(h2_2);
+
+            const customPointSettings = { win: 5, draw: 0, loss: 0 };
+            const ranking_custom = calculateRanking(players, matches, customPointSettings);
+            const results_custom = Object.fromEntries(ranking_custom);
+
+            assertEquals(5, results_custom['A'].points, "[Custom] Player A (winner) should have 5 points");
+            assertEquals(0, results_custom['B'].points, "[Custom] Player B (loser) should have 0 points");
+            assertEquals(0, results_custom['C'].points, "[Custom] Player C (draw) should have 0 points");
+            assertEquals(0, results_custom['D'].points, "[Custom] Player D (draw) should have 0 points");
+        }
+
+        runTests();
+    </script>
+</body>
+</html>
